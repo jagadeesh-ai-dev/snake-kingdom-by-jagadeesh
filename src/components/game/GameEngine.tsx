@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import GameUI from "./GameUI";
 
 export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 export type Difficulty = "EASY" | "MEDIUM" | "HARD" | "EXTREME";
@@ -295,6 +296,23 @@ const GameEngine: React.FC<GameEngineProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [gameState.direction, gameState.gameOver, gameState.paused, resetGame]);
   
+  // Handle direction change from UI controls
+  const handleDirectionChange = (direction: Direction) => {
+    if (gameState.gameOver || gameState.paused) return;
+    
+    // Prevent 180-degree turns
+    if (
+      (gameState.direction === "UP" && direction === "DOWN") ||
+      (gameState.direction === "DOWN" && direction === "UP") ||
+      (gameState.direction === "LEFT" && direction === "RIGHT") ||
+      (gameState.direction === "RIGHT" && direction === "LEFT")
+    ) {
+      return;
+    }
+    
+    directionQueueRef.current.push(direction);
+  };
+  
   // Touch controls
   const handleTouchStart = useRef<Position | null>(null);
   
@@ -411,69 +429,62 @@ const GameEngine: React.FC<GameEngineProps> = ({
   };
   
   return (
-    <div 
-      className="game-container aspect-square relative w-full max-w-xl mx-auto"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-    >
-      {/* Game grid */}
-      <div className="snake-grid relative w-full h-full bg-snake-background rounded-lg overflow-hidden">
-        {renderGrid()}
+    <div className="flex flex-col items-center">
+      <div 
+        className="game-container aspect-square relative w-full max-w-md mx-auto"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+      >
+        {/* Game grid */}
+        <div className="snake-grid relative w-full h-full bg-snake-background rounded-lg overflow-hidden">
+          {renderGrid()}
+        </div>
+        
+        {/* Game overlay for pause/game over */}
+        {(gameState.paused || gameState.gameOver) && (
+          <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-10 rounded-lg">
+            {gameState.paused ? (
+              <>
+                <h2 className="text-4xl font-bold text-white mb-6">Paused</h2>
+                <button 
+                  className="pixel-button mb-4" 
+                  onClick={togglePause}
+                >
+                  Resume Game
+                </button>
+                <button 
+                  className="pixel-button-secondary" 
+                  onClick={resetGame}
+                >
+                  Restart Game
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-4xl font-bold text-snake-danger mb-2">Game Over</h2>
+                <p className="text-2xl text-white mb-6">Score: {gameState.score}</p>
+                <button 
+                  className="pixel-button" 
+                  onClick={resetGame}
+                >
+                  Play Again
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
       
-      {/* Game overlay for pause/game over */}
-      {(gameState.paused || gameState.gameOver) && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-10 rounded-lg">
-          {gameState.paused ? (
-            <>
-              <h2 className="text-4xl font-bold text-white mb-6">Paused</h2>
-              <button 
-                className="pixel-button mb-4" 
-                onClick={togglePause}
-              >
-                Resume Game
-              </button>
-              <button 
-                className="pixel-button-secondary" 
-                onClick={resetGame}
-              >
-                Restart Game
-              </button>
-            </>
-          ) : (
-            <>
-              <h2 className="text-4xl font-bold text-snake-danger mb-2">Game Over</h2>
-              <p className="text-2xl text-white mb-6">Score: {gameState.score}</p>
-              <button 
-                className="pixel-button" 
-                onClick={resetGame}
-              >
-                Play Again
-              </button>
-            </>
-          )}
-        </div>
-      )}
-      
-      {/* HUD */}
-      <div className="flex justify-between items-center mt-4">
-        <div className="text-lg font-semibold text-snake-score">Score: {gameState.score}</div>
-        <div className="space-x-2">
-          <button 
-            className="px-4 py-1 rounded bg-snake-primary hover:bg-purple-600 text-white transition-colors"
-            onClick={togglePause}
-            disabled={gameState.gameOver}
-          >
-            {gameState.paused ? "Resume" : "Pause"}
-          </button>
-          <button 
-            className="px-4 py-1 rounded bg-snake-secondary hover:bg-indigo-600 text-white transition-colors"
-            onClick={resetGame}
-          >
-            Restart
-          </button>
-        </div>
-      </div>
+      {/* Game UI Controls */}
+      <GameUI 
+        onDirectionChange={handleDirectionChange}
+        onPause={togglePause}
+        onResume={togglePause}
+        onRestart={resetGame}
+        isPaused={gameState.paused}
+        isGameOver={gameState.gameOver}
+        score={gameState.score}
+      />
     </div>
   );
 };
