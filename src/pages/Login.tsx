@@ -34,7 +34,7 @@ const Login = () => {
       if (success) {
         toast({
           title: "Login Successful",
-          description: "Welcome back to PixelDash Snake!",
+          description: "Welcome back to Snake Kingdom!",
         });
         navigate("/dashboard");
       } else {
@@ -82,7 +82,7 @@ const Login = () => {
               <label htmlFor="password" className="block text-sm font-medium">
                 Password
               </label>
-              <Link to="#" className="text-xs text-snake-primary hover:underline">
+              <Link to="/forgot-password" className="text-xs text-snake-primary hover:underline">
                 Forgot password?
               </Link>
             </div>

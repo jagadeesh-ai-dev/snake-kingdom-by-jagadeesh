@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Fullscreen } from "lucide-react";
 
 export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 export type Difficulty = "EASY" | "MEDIUM" | "HARD" | "EXTREME";
@@ -40,6 +41,8 @@ const GameEngine: React.FC<GameEngineProps> = ({
 }) => {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Game state
   const [gameState, setGameState] = useState<GameState>({
@@ -242,6 +245,33 @@ const GameEngine: React.FC<GameEngineProps> = ({
     }));
   }, [gameState, getRandomFoodPosition, isAuthenticated, onGameOver, user, toast]);
   
+  // Fullscreen handler
+  const toggleFullscreen = () => {
+    if (!gameContainerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      gameContainerRef.current.requestFullscreen().catch(err => {
+        toast({
+          title: "Fullscreen Error",
+          description: `Error attempting to enable full-screen mode: ${err.message}`,
+        });
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+  
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+  
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -337,6 +367,34 @@ const GameEngine: React.FC<GameEngineProps> = ({
     }
   };
   
+  // Direction button handlers
+  const handleDirectionButton = (direction: Direction) => {
+    if (gameState.gameOver || gameState.paused) return;
+    
+    switch (direction) {
+      case "UP":
+        if (gameState.direction !== "DOWN") {
+          directionQueueRef.current.push("UP");
+        }
+        break;
+      case "DOWN":
+        if (gameState.direction !== "UP") {
+          directionQueueRef.current.push("DOWN");
+        }
+        break;
+      case "LEFT":
+        if (gameState.direction !== "RIGHT") {
+          directionQueueRef.current.push("LEFT");
+        }
+        break;
+      case "RIGHT":
+        if (gameState.direction !== "LEFT") {
+          directionQueueRef.current.push("RIGHT");
+        }
+        break;
+    }
+  };
+  
   // Game loop
   useEffect(() => {
     if (gameState.gameOver || gameState.paused) return;
@@ -412,7 +470,8 @@ const GameEngine: React.FC<GameEngineProps> = ({
   
   return (
     <div 
-      className="game-container aspect-square relative w-full max-w-xl mx-auto"
+      ref={gameContainerRef}
+      className={`game-container relative w-full mx-auto ${isFullscreen ? 'fullscreen-mode h-screen flex flex-col justify-center' : 'aspect-square max-w-xl'}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
     >
@@ -455,6 +514,48 @@ const GameEngine: React.FC<GameEngineProps> = ({
         </div>
       )}
       
+      {/* Mobile direction controls */}
+      <div className={`direction-controls ${isFullscreen ? 'mt-4' : 'mt-2'} md:hidden`}>
+        <div className="grid grid-cols-3 gap-1 max-w-xs mx-auto">
+          <div className="col-start-2">
+            <button 
+              className="w-full h-12 bg-snake-primary/70 hover:bg-snake-primary rounded-md flex items-center justify-center"
+              onClick={() => handleDirectionButton("UP")}
+              aria-label="Move Up"
+            >
+              <ArrowUp size={24} />
+            </button>
+          </div>
+          <div className="col-start-1 row-start-2">
+            <button 
+              className="w-full h-12 bg-snake-primary/70 hover:bg-snake-primary rounded-md flex items-center justify-center" 
+              onClick={() => handleDirectionButton("LEFT")}
+              aria-label="Move Left"
+            >
+              <ArrowLeft size={24} />
+            </button>
+          </div>
+          <div className="col-start-3 row-start-2">
+            <button 
+              className="w-full h-12 bg-snake-primary/70 hover:bg-snake-primary rounded-md flex items-center justify-center"
+              onClick={() => handleDirectionButton("RIGHT")}
+              aria-label="Move Right"
+            >
+              <ArrowRight size={24} />
+            </button>
+          </div>
+          <div className="col-start-2 row-start-3">
+            <button 
+              className="w-full h-12 bg-snake-primary/70 hover:bg-snake-primary rounded-md flex items-center justify-center"
+              onClick={() => handleDirectionButton("DOWN")}
+              aria-label="Move Down"
+            >
+              <ArrowDown size={24} />
+            </button>
+          </div>
+        </div>
+      </div>
+      
       {/* HUD */}
       <div className="flex justify-between items-center mt-4">
         <div className="text-lg font-semibold text-snake-score">Score: {gameState.score}</div>
@@ -471,6 +572,13 @@ const GameEngine: React.FC<GameEngineProps> = ({
             onClick={resetGame}
           >
             Restart
+          </button>
+          <button 
+            className="px-4 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+            onClick={toggleFullscreen}
+            aria-label="Toggle fullscreen"
+          >
+            <Fullscreen size={18} />
           </button>
         </div>
       </div>

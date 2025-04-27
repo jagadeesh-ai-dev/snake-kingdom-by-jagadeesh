@@ -7,6 +7,12 @@ type User = {
   email: string;
   profilePicture?: string;
   highScore: number;
+  bio?: string;
+  contactDetails?: {
+    phone?: string;
+    website?: string;
+    location?: string;
+  };
 };
 
 type AuthContextType = {
@@ -15,6 +21,9 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, username: string, password: string) => Promise<boolean>;
   logout: () => void;
+  resetPassword: (email: string) => Promise<boolean>;
+  updateProfile: (userData: Partial<User>) => Promise<boolean>;
+  updateProfilePicture: (imageBase64: string) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username: "SnakePlayerOne",
         email: "demo@example.com",
         highScore: 100,
+        bio: "Snake enthusiast and game developer",
+        contactDetails: {
+          location: "Snake City, Reptile Land"
+        }
       };
       setUser(mockUser);
       localStorage.setItem("snakeUser", JSON.stringify(mockUser));
@@ -58,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: foundUser.email,
           highScore: foundUser.highScore || 0,
           profilePicture: foundUser.profilePicture,
+          bio: foundUser.bio || '',
+          contactDetails: foundUser.contactDetails || {}
         };
         
         setUser(loggedInUser);
@@ -93,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password, // In a real app, this would be hashed
       highScore: 0,
+      bio: '',
+      contactDetails: {},
       createdAt: new Date().toISOString(),
     };
     
@@ -105,10 +122,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       username: newUser.username,
       email: newUser.email,
       highScore: 0,
+      bio: '',
+      contactDetails: {}
     };
     
     setUser(loggedInUser);
     localStorage.setItem("snakeUser", JSON.stringify(loggedInUser));
+    return true;
+  };
+
+  const resetPassword = async (email: string): Promise<boolean> => {
+    // Check if email exists in registered users
+    const registeredUsers = localStorage.getItem("registeredUsers");
+    if (!registeredUsers) return false;
+    
+    const users = JSON.parse(registeredUsers);
+    const userExists = users.some((u: any) => u.email === email);
+    
+    if (!userExists) return false;
+    
+    // In a real app, this would generate a reset token and send an email
+    // For demo purposes, we'll just reset to a default password
+    const updatedUsers = users.map((u: any) => {
+      if (u.email === email) {
+        return { ...u, password: "resetpassword" };
+      }
+      return u;
+    });
+    
+    localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
+    return true;
+  };
+
+  const updateProfile = async (userData: Partial<User>): Promise<boolean> => {
+    if (!user) return false;
+    
+    const updatedUser = { ...user, ...userData };
+    setUser(updatedUser);
+    localStorage.setItem("snakeUser", JSON.stringify(updatedUser));
+    
+    // Update in registered users as well
+    const registeredUsers = localStorage.getItem("registeredUsers");
+    if (registeredUsers) {
+      const users = JSON.parse(registeredUsers);
+      const updatedUsers = users.map((u: any) => 
+        u.id === user.id ? { ...u, ...userData, password: u.password } : u
+      );
+      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
+    }
+    
+    return true;
+  };
+  
+  const updateProfilePicture = async (imageBase64: string): Promise<boolean> => {
+    if (!user) return false;
+    
+    const updatedUser = { ...user, profilePicture: imageBase64 };
+    setUser(updatedUser);
+    localStorage.setItem("snakeUser", JSON.stringify(updatedUser));
+    
+    // Update in registered users as well
+    const registeredUsers = localStorage.getItem("registeredUsers");
+    if (registeredUsers) {
+      const users = JSON.parse(registeredUsers);
+      const updatedUsers = users.map((u: any) => 
+        u.id === user.id ? { ...u, profilePicture: imageBase64, password: u.password } : u
+      );
+      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
+    }
+    
     return true;
   };
 
@@ -123,6 +205,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
+    resetPassword,
+    updateProfile,
+    updateProfilePicture
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
