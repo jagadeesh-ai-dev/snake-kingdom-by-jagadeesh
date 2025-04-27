@@ -1,17 +1,11 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-type PrivacyLevel = "public" | "friends" | "private";
-
 type User = {
   id: string;
   username: string;
   email: string;
   profilePicture?: string;
-  bio?: string;
-  phone?: string;
-  phonePrivacy?: PrivacyLevel;
-  emailPrivacy?: PrivacyLevel;
   highScore: number;
 };
 
@@ -23,10 +17,8 @@ type AuthContextType = {
   logout: () => void;
 };
 
-// Create the context with a default undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Export the AuthProvider as a proper React function component
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   
@@ -47,9 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username: "SnakePlayerOne",
         email: "demo@example.com",
         highScore: 100,
-        bio: "I love playing Snake!",
-        phonePrivacy: "private",
-        emailPrivacy: "private"
       };
       setUser(mockUser);
       localStorage.setItem("snakeUser", JSON.stringify(mockUser));
@@ -69,10 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: foundUser.email,
           highScore: foundUser.highScore || 0,
           profilePicture: foundUser.profilePicture,
-          bio: foundUser.bio || "",
-          phone: foundUser.phone || "",
-          phonePrivacy: foundUser.phonePrivacy || "private",
-          emailPrivacy: foundUser.emailPrivacy || "private"
         };
         
         setUser(loggedInUser);
@@ -108,9 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password, // In a real app, this would be hashed
       highScore: 0,
-      bio: "",
-      phonePrivacy: "private",
-      emailPrivacy: "private",
       createdAt: new Date().toISOString(),
     };
     
@@ -123,8 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       username: newUser.username,
       email: newUser.email,
       highScore: 0,
-      phonePrivacy: "private",
-      emailPrivacy: "private",
     };
     
     setUser(loggedInUser);
@@ -148,10 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Custom hook to use the auth context
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
