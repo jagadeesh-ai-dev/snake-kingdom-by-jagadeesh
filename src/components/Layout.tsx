@@ -1,7 +1,7 @@
 
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Gamepad, Trophy, User, LogOut } from "lucide-react";
+import { Gamepad, Trophy, User, LogOut, Users, MessageSquare } from "lucide-react";
 import { ReactNode } from "react";
 
 interface LayoutProps {
@@ -23,7 +23,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="container mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <span className="text-3xl font-bold tracking-tight text-white bg-gradient-to-br from-white to-purple-200 bg-clip-text text-transparent">
-              PixelDash Snake
+              Hungry Snake
             </span>
           </Link>
           
@@ -31,6 +31,8 @@ const Layout = ({ children }: LayoutProps) => {
             <Link to="/" className="text-white hover:text-purple-200 transition-colors">Home</Link>
             <Link to="/game" className="text-white hover:text-purple-200 transition-colors">Play</Link>
             <Link to="/leaderboard" className="text-white hover:text-purple-200 transition-colors">Leaderboard</Link>
+            <Link to="/tournaments" className="text-white hover:text-purple-200 transition-colors">Tournaments</Link>
+            <Link to="/friends" className="text-white hover:text-purple-200 transition-colors">Friends</Link>
             {isAuthenticated ? (
               <Link to="/dashboard" className="text-white hover:text-purple-200 transition-colors">Dashboard</Link>
             ) : null}
@@ -69,7 +71,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-snake-text opacity-70">
-              © 2025 PixelDash Snake. All rights reserved.
+              © 2025 Hungry Snake. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <a href="#" className="text-sm text-snake-text hover:text-purple-400 transition-colors">Privacy Policy</a>
@@ -90,10 +92,18 @@ const Layout = ({ children }: LayoutProps) => {
           <Link to="/leaderboard" className="text-white p-2">
             <Trophy />
           </Link>
+          <Link to="/friends" className="text-white p-2">
+            <Users />
+          </Link>
           {isAuthenticated && (
-            <Link to="/dashboard" className="text-white p-2">
-              <User />
-            </Link>
+            <>
+              <Link to="/messages" className="text-white p-2">
+                <MessageSquare />
+              </Link>
+              <Link to="/dashboard" className="text-white p-2">
+                <User />
+              </Link>
+            </>
           )}
         </div>
       </div>

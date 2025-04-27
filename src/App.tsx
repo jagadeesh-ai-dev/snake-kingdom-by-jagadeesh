@@ -12,6 +12,9 @@ import Leaderboard from "@/pages/Leaderboard";
 import Profile from "@/pages/Profile";
 import ForgotPassword from "@/pages/ForgotPassword";
 import NotFound from "@/pages/NotFound";
+import Friends from "@/pages/Friends";
+import Tournaments from "@/pages/Tournaments";
+import Messages from "@/pages/Messages";
 
 import "./App.css";
 
@@ -29,6 +32,9 @@ function App() {
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/friends" element={<Friends />} />
+            <Route path="/tournaments" element={<Tournaments />} />
+            <Route path="/messages" element={<Messages />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
