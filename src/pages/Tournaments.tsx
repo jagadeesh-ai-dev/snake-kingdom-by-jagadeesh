@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Trophy, Calendar, Users, Clock } from "lucide-react";
+import { Trophy } from "lucide-react";
+import { TournamentCard } from "@/components/tournaments/TournamentCard";
+import { CreateTournamentForm } from "@/components/tournaments/CreateTournamentForm";
 
 // Mock data for tournaments
 const MOCK_TOURNAMENTS = [
@@ -57,181 +58,6 @@ const MOCK_TOURNAMENTS = [
   }
 ];
 
-const TournamentCard = ({ tournament, onRegister, onUnregister }) => {
-  const isUpcoming = tournament.status === "upcoming";
-  const isCompleted = tournament.status === "completed";
-  const isFull = tournament.participants >= tournament.maxParticipants;
-  
-  // Format date - Fixed to use proper DateTimeFormatOptions types
-  const formatDate = (dateString) => {
-    const options = { 
-      month: "short" as const, 
-      day: "numeric" as const, 
-      hour: "2-digit" as const, 
-      minute: "2-digit" as const
-    };
-    return new Date(dateString).toLocaleString('en-US', options);
-  };
-  
-  return (
-    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-6">
-      <div className="flex justify-between items-start">
-        <h3 className="text-xl font-bold">{tournament.name}</h3>
-        {isCompleted && tournament.position === 1 && (
-          <Trophy className="h-6 w-6 text-yellow-400" />
-        )}
-      </div>
-      
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center text-gray-300">
-          <Calendar className="h-4 w-4 mr-2" />
-          <span>{formatDate(tournament.startDate)}</span>
-        </div>
-        
-        <div className="flex items-center text-gray-300">
-          <Users className="h-4 w-4 mr-2" />
-          <span>{tournament.participants}/{tournament.maxParticipants} participants</span>
-        </div>
-      </div>
-      
-      <div className="mt-6">
-        {isCompleted ? (
-          <div className="bg-gray-700 text-center py-2 px-4 rounded">
-            {tournament.position ? (
-              <span className="font-medium">
-                Finished {tournament.position === 1 ? "1st 🏆" : 
-                        tournament.position === 2 ? "2nd 🥈" : 
-                        tournament.position === 3 ? "3rd 🥉" : 
-                        `${tournament.position}th`}
-              </span>
-            ) : (
-              <span>Completed</span>
-            )}
-          </div>
-        ) : tournament.registered ? (
-          <div className="flex flex-col space-y-2">
-            <div className="bg-green-800 bg-opacity-30 text-center py-2 rounded">
-              <span className="text-green-400 font-medium">Registered</span>
-            </div>
-            <Button 
-              variant="outline" 
-              className="border-red-500 text-red-500 hover:bg-red-900 hover:text-white hover:border-red-900"
-              onClick={() => onUnregister(tournament.id)}
-            >
-              Cancel Registration
-            </Button>
-          </div>
-        ) : (
-          <Button 
-            className="w-full bg-snake-primary hover:bg-purple-600"
-            disabled={isFull}
-            onClick={() => onRegister(tournament.id)}
-          >
-            {isFull ? "Tournament Full" : "Register Now"}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const CreateTournamentForm = ({ onClose, onCreate }) => {
-  const [name, setName] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState(16);
-  const { toast } = useToast();
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!name || !date || !time) {
-      toast({
-        title: "Missing Fields",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Create a combined date/time string
-    const startDate = `${date}T${time}:00`;
-    
-    // Create new tournament
-    const newTournament = {
-      id: `t${Date.now()}`,
-      name,
-      startDate,
-      participants: 1, // Creator is first participant
-      maxParticipants,
-      status: "upcoming",
-      registered: true,
-    };
-    
-    onCreate(newTournament);
-    onClose();
-  };
-  
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-1">Tournament Name</label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter tournament name"
-          className="bg-gray-800 border-gray-700"
-          required
-        />
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Date</label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-gray-800 border-gray-700"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Time</label>
-          <Input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="bg-gray-800 border-gray-700"
-            required
-          />
-        </div>
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium mb-1">Maximum Participants</label>
-        <Input
-          type="number"
-          min={2}
-          max={64}
-          value={maxParticipants}
-          onChange={(e) => setMaxParticipants(parseInt(e.target.value))}
-          className="bg-gray-800 border-gray-700"
-        />
-      </div>
-      
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" className="bg-snake-primary hover:bg-purple-600">
-          Create Tournament
-        </Button>
-      </div>
-    </form>
-  );
-};
-
 const Tournaments = () => {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -239,11 +65,9 @@ const Tournaments = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // Filter tournaments by status
   const upcomingTournaments = tournaments.filter(t => t.status === "upcoming");
   const completedTournaments = tournaments.filter(t => t.status === "completed");
   
-  // Filter by search query
   const filteredUpcoming = upcomingTournaments.filter(t => 
     t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -251,7 +75,7 @@ const Tournaments = () => {
     t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  const handleRegister = (tournamentId) => {
+  const handleRegister = (tournamentId: string) => {
     if (!isAuthenticated) {
       toast({
         title: "Login Required",
@@ -273,7 +97,7 @@ const Tournaments = () => {
     });
   };
   
-  const handleUnregister = (tournamentId) => {
+  const handleUnregister = (tournamentId: string) => {
     setTournaments(tournaments.map(t => 
       t.id === tournamentId 
         ? { ...t, registered: false, participants: t.participants - 1 } 
@@ -286,7 +110,7 @@ const Tournaments = () => {
     });
   };
   
-  const handleCreateTournament = (newTournament) => {
+  const handleCreateTournament = (newTournament: any) => {
     setTournaments([newTournament, ...tournaments]);
     
     toast({
