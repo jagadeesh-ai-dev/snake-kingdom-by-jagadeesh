@@ -62,13 +62,13 @@ const TournamentCard = ({ tournament, onRegister, onUnregister }) => {
   const isCompleted = tournament.status === "completed";
   const isFull = tournament.participants >= tournament.maxParticipants;
   
-  // Format date
+  // Format date - Fixed to use proper DateTimeFormatOptions types
   const formatDate = (dateString) => {
     const options = { 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit'
+      month: "short" as const, 
+      day: "numeric" as const, 
+      hour: "2-digit" as const, 
+      minute: "2-digit" as const
     };
     return new Date(dateString).toLocaleString('en-US', options);
   };
