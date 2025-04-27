@@ -15,7 +15,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div className="flex flex-col gap-6">
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-300">
-                Welcome to PixelDash Snake
+                Welcome to Snake Kingdom
               </h1>
               <p className="text-lg md:text-xl text-gray-300">
                 Test your skills with our modern take on the classic snake game. Compete with friends, earn achievements, and climb the global leaderboard.
