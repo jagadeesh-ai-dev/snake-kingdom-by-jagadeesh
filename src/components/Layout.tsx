@@ -1,9 +1,14 @@
 
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Gamepad, Trophy, User, LogOut } from "lucide-react";
+import { ReactNode } from "react";
 
-const Layout = () => {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+const Layout = ({ children }: LayoutProps) => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   
@@ -57,7 +62,7 @@ const Layout = () => {
       </header>
       
       <main className="flex-grow">
-        <Outlet />
+        {children}
       </main>
       
       <footer className="py-6 bg-snake-background border-t border-snake-grid">
