@@ -21,7 +21,7 @@ export interface DbProfile {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
-  highScore?: number; // Added in our application layer
+  highScore?: number;
   bio?: string;
   phone?: string;
   website?: string;
