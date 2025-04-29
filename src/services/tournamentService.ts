@@ -46,7 +46,7 @@ export async function getAllTournaments() {
       start_date: tournament.start_date,
       max_participants: tournament.max_participants,
       creator_id: tournament.creator_id,
-      status: tournament.status,
+      status: tournament.status as 'upcoming' | 'in_progress' | 'completed',
       participants: participants.length,
       registered: isRegistered
     };
@@ -82,6 +82,7 @@ export async function createTournament(tournament: Omit<Tournament, 'id' | 'crea
   
   return {
     ...data,
+    status: data.status as 'upcoming' | 'in_progress' | 'completed',
     participants: 1,
     registered: true
   };

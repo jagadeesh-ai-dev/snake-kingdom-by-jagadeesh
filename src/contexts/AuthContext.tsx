@@ -3,6 +3,7 @@ import { createContext, useContext, useState, ReactNode, useEffect } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { AppUser, DbProfile } from "@/types";
 
 type Profile = {
   id: string;
@@ -18,7 +19,7 @@ type Profile = {
 };
 
 type AuthContextType = {
-  user: User | null;
+  user: AppUser | null;
   profile: Profile | null;
   isAuthenticated: boolean;
   session: Session | null;
@@ -34,7 +35,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,33 +46,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Cast as AppUser and set initial user
+          setUser(session.user as AppUser);
 
-        // Only fetch profile when there's a user and on relevant events
-        if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+          // Only fetch profile when there's a user and on relevant events
+          if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+            try {
+              const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-            if (error) {
-              console.error('Error fetching profile:', error);
-            } else if (data) {
-              setProfile({
-                ...data,
-                contactDetails: {
-                  phone: data.phone || undefined,
-                  website: data.website || undefined,
-                  location: data.location || undefined,
-                }
-              });
+              if (error) {
+                console.error('Error fetching profile:', error);
+              } else if (data) {
+                const dbProfile = data as DbProfile;
+                
+                // Transform database profile to our app profile format
+                const appProfile: Profile = {
+                  id: dbProfile.id,
+                  username: dbProfile.username,
+                  avatar_url: dbProfile.avatar_url,
+                  highScore: dbProfile.highScore,
+                  bio: dbProfile.bio,
+                  contactDetails: {
+                    phone: dbProfile.phone,
+                    website: dbProfile.website,
+                    location: dbProfile.location
+                  }
+                };
+                
+                setProfile(appProfile);
+                
+                // Update user with additional fields from profile
+                setUser(prevUser => {
+                  if (!prevUser) return null;
+                  return {
+                    ...prevUser,
+                    username: dbProfile.username,
+                    highScore: dbProfile.highScore,
+                    profilePicture: dbProfile.avatar_url,
+                    bio: dbProfile.bio,
+                    contactDetails: {
+                      phone: dbProfile.phone,
+                      website: dbProfile.website,
+                      location: dbProfile.location
+                    }
+                  };
+                });
+              }
+            } catch (error) {
+              console.error('Error in profile fetch:', error);
             }
-          } catch (error) {
-            console.error('Error in profile fetch:', error);
           }
         } else if (!session) {
+          setUser(null);
           setProfile(null);
         }
       }
@@ -80,9 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
       
       if (session?.user) {
+        // Cast as AppUser and set initial user
+        setUser(session.user as AppUser);
+        
+        // Fetch profile data
         supabase
           .from('profiles')
           .select('*')
@@ -92,13 +127,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (error) {
               console.error('Error fetching profile:', error);
             } else if (data) {
-              setProfile({
-                ...data,
+              const dbProfile = data as DbProfile;
+              
+              // Transform database profile to our app profile format
+              const appProfile: Profile = {
+                id: dbProfile.id,
+                username: dbProfile.username,
+                avatar_url: dbProfile.avatar_url,
+                highScore: dbProfile.highScore,
+                bio: dbProfile.bio,
                 contactDetails: {
-                  phone: data.phone || undefined,
-                  website: data.website || undefined,
-                  location: data.location || undefined,
+                  phone: dbProfile.phone,
+                  website: dbProfile.website,
+                  location: dbProfile.location
                 }
+              };
+              
+              setProfile(appProfile);
+              
+              // Update user with additional fields from profile
+              setUser(prevUser => {
+                if (!prevUser) return null;
+                return {
+                  ...prevUser,
+                  username: dbProfile.username,
+                  highScore: dbProfile.highScore,
+                  profilePicture: dbProfile.avatar_url,
+                  bio: dbProfile.bio,
+                  contactDetails: {
+                    phone: dbProfile.phone,
+                    website: dbProfile.website,
+                    location: dbProfile.location
+                  }
+                };
               });
             }
             setLoading(false);
@@ -213,6 +274,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Update the local state
       setProfile(prev => prev ? { ...prev, ...userData } : null);
+      
+      // Update the user object as well
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        return {
+          ...prevUser,
+          username: userData.username || prevUser.username,
+          bio: userData.bio || prevUser.bio,
+          contactDetails: {
+            ...prevUser.contactDetails,
+            ...userData.contactDetails
+          }
+        };
+      });
+      
       return true;
     } catch (error) {
       console.error('Error in update profile:', error);
@@ -224,9 +300,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
 
     try {
-      // Store the avatar image
-      const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
-      
       // Update the profile with the avatar URL
       const { error } = await supabase
         .from('profiles')
@@ -243,6 +316,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Update local state
       setProfile(prev => prev ? { ...prev, avatar_url: imageBase64 } : null);
+      
+      // Update user object
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        return {
+          ...prevUser,
+          profilePicture: imageBase64
+        };
+      });
+      
       return true;
     } catch (error) {
       console.error('Error in avatar update:', error);

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Gamepad, Trophy, User, LogOut, Users, MessageSquare } from "lucide-react";
 import { ReactNode } from "react";
+import { AppUser } from "@/types";
 
 interface LayoutProps {
   children: ReactNode;
