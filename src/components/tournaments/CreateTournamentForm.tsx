@@ -2,21 +2,25 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { Tournament } from "@/services/tournamentService";
 
 interface CreateTournamentFormProps {
   onClose: () => void;
-  onCreate: (tournament: any) => void;
+  onCreate: (tournament: Omit<Tournament, 'id' | 'creator_id' | 'status' | 'participants' | 'registered'>) => Promise<boolean>;
 }
 
 export const CreateTournamentForm = ({ onClose, onCreate }: CreateTournamentFormProps) => {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [maxParticipants, setMaxParticipants] = useState(16);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name || !date || !time) {
@@ -28,20 +32,23 @@ export const CreateTournamentForm = ({ onClose, onCreate }: CreateTournamentForm
       return;
     }
     
-    const startDate = `${date}T${time}:00`;
+    const start_date = `${date}T${time}:00`;
     
-    const newTournament = {
-      id: `t${Date.now()}`,
-      name,
-      startDate,
-      participants: 1,
-      maxParticipants,
-      status: "upcoming",
-      registered: true,
-    };
-    
-    onCreate(newTournament);
-    onClose();
+    setIsLoading(true);
+    try {
+      const success = await onCreate({
+        name,
+        description,
+        start_date,
+        max_participants: maxParticipants,
+      });
+      
+      if (success) {
+        onClose();
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -54,6 +61,16 @@ export const CreateTournamentForm = ({ onClose, onCreate }: CreateTournamentForm
           placeholder="Enter tournament name"
           className="bg-gray-800 border-gray-700"
           required
+        />
+      </div>
+      
+      <div>
+        <label className="block text-sm font-medium mb-1">Description</label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Enter tournament description"
+          className="bg-gray-800 border-gray-700"
         />
       </div>
       
@@ -93,11 +110,11 @@ export const CreateTournamentForm = ({ onClose, onCreate }: CreateTournamentForm
       </div>
       
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
           Cancel
         </Button>
-        <Button type="submit" className="bg-snake-primary hover:bg-purple-600">
-          Create Tournament
+        <Button type="submit" className="bg-snake-primary hover:bg-purple-600" disabled={isLoading}>
+          {isLoading ? "Creating..." : "Create Tournament"}
         </Button>
       </div>
     </form>

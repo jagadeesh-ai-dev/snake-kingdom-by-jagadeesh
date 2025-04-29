@@ -43,19 +43,20 @@ const Register = () => {
     setError("");
     
     try {
-      const success = await register(email, username, password);
+      const { success, error } = await register(email, username, password);
       
       if (success) {
         toast({
           title: "Registration Successful",
-          description: "Welcome to PixelDash Snake!",
+          description: "Welcome to Snake Kingdom!",
         });
         navigate("/dashboard");
       } else {
-        setError("Username or email already exists");
+        setError(error || "Username or email already exists");
       }
     } catch (err) {
       setError("An error occurred during registration");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +67,7 @@ const Register = () => {
       <div className="w-full max-w-md px-8 py-10 bg-snake-background border border-snake-primary/30 rounded-lg shadow-xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Create Account</h1>
-          <p className="text-gray-400">Join PixelDash Snake and start playing</p>
+          <p className="text-gray-400">Join Snake Kingdom and start playing</p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">

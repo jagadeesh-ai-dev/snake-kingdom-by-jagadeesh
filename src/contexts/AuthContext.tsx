@@ -1,12 +1,14 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
-type User = {
+type Profile = {
   id: string;
   username: string;
-  email: string;
-  profilePicture?: string;
-  highScore: number;
+  avatar_url: string | null;
+  highScore?: number;
   bio?: string;
   contactDetails?: {
     phone?: string;
@@ -17,197 +19,249 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
+  profile: Profile | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, username: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  resetPassword: (email: string) => Promise<boolean>;
-  updateProfile: (userData: Partial<User>) => Promise<boolean>;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (userData: Partial<Profile>) => Promise<boolean>;
   updateProfilePicture: (imageBase64: string) => Promise<boolean>;
+  loading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
   useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem("snakeUser");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    // First set up the auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        // Only fetch profile when there's a user and on relevant events
+        if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (error) {
+              console.error('Error fetching profile:', error);
+            } else if (data) {
+              setProfile({
+                ...data,
+                contactDetails: {
+                  phone: data.phone || undefined,
+                  website: data.website || undefined,
+                  location: data.location || undefined,
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error in profile fetch:', error);
+          }
+        } else if (!session) {
+          setProfile(null);
+        }
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error fetching profile:', error);
+            } else if (data) {
+              setProfile({
+                ...data,
+                contactDetails: {
+                  phone: data.phone || undefined,
+                  website: data.website || undefined,
+                  location: data.location || undefined,
+                }
+              });
+            }
+            setLoading(false);
+          });
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // For demo purposes, we'll simulate a successful login for specific credentials
-    // In a real app, this would connect to your backend
-    if (email === "demo@example.com" && password === "password") {
-      const mockUser: User = {
-        id: "user-1",
-        username: "SnakePlayerOne",
-        email: "demo@example.com",
-        highScore: 100,
-        bio: "Snake enthusiast and game developer",
-        contactDetails: {
-          location: "Snake City, Reptile Land"
-        }
-      };
-      setUser(mockUser);
-      localStorage.setItem("snakeUser", JSON.stringify(mockUser));
-      return true;
-    }
-    
-    // Check if any registered users exist in localStorage
-    const registeredUsers = localStorage.getItem("registeredUsers");
-    if (registeredUsers) {
-      const users = JSON.parse(registeredUsers);
-      const foundUser = users.find((u: any) => u.email === email && u.password === password);
-      
-      if (foundUser) {
-        const loggedInUser: User = {
-          id: foundUser.id,
-          username: foundUser.username,
-          email: foundUser.email,
-          highScore: foundUser.highScore || 0,
-          profilePicture: foundUser.profilePicture,
-          bio: foundUser.bio || '',
-          contactDetails: foundUser.contactDetails || {}
-        };
-        
-        setUser(loggedInUser);
-        localStorage.setItem("snakeUser", JSON.stringify(loggedInUser));
-        return true;
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
       }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: 'An unexpected error occurred during login' };
     }
-    
-    return false;
   };
 
-  const register = async (email: string, username: string, password: string): Promise<boolean> => {
-    // Check if username or email already exists
-    const registeredUsers = localStorage.getItem("registeredUsers");
-    let users = [];
-    
-    if (registeredUsers) {
-      users = JSON.parse(registeredUsers);
-      
-      const existingUser = users.find(
-        (u: any) => u.email === email || u.username === username
-      );
-      
-      if (existingUser) {
+  const register = async (email: string, username: string, password: string) => {
+    try {
+      // Check if username exists first
+      const { data: existingUsers, error: queryError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username);
+
+      if (queryError) {
+        return { success: false, error: 'Error checking username availability' };
+      }
+
+      if (existingUsers && existingUsers.length > 0) {
+        return { success: false, error: 'Username already taken' };
+      }
+
+      // Register the user
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username
+          }
+        }
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { success: false, error: 'An unexpected error occurred during registration' };
+    }
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  };
+
+  const updateProfile = async (userData: Partial<Profile>) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: userData.username,
+          bio: userData.bio,
+          phone: userData.contactDetails?.phone,
+          website: userData.contactDetails?.website,
+          location: userData.contactDetails?.location,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating profile:', error);
         return false;
       }
+
+      // Update the local state
+      setProfile(prev => prev ? { ...prev, ...userData } : null);
+      return true;
+    } catch (error) {
+      console.error('Error in update profile:', error);
+      return false;
     }
-    
-    // Create new user
-    const newUser = {
-      id: `user-${Date.now()}`,
-      username,
-      email,
-      password, // In a real app, this would be hashed
-      highScore: 0,
-      bio: '',
-      contactDetails: {},
-      createdAt: new Date().toISOString(),
-    };
-    
-    users.push(newUser);
-    localStorage.setItem("registeredUsers", JSON.stringify(users));
-    
-    // Log the user in
-    const loggedInUser: User = {
-      id: newUser.id,
-      username: newUser.username,
-      email: newUser.email,
-      highScore: 0,
-      bio: '',
-      contactDetails: {}
-    };
-    
-    setUser(loggedInUser);
-    localStorage.setItem("snakeUser", JSON.stringify(loggedInUser));
-    return true;
   };
 
-  const resetPassword = async (email: string): Promise<boolean> => {
-    // Check if email exists in registered users
-    const registeredUsers = localStorage.getItem("registeredUsers");
-    if (!registeredUsers) return false;
-    
-    const users = JSON.parse(registeredUsers);
-    const userExists = users.some((u: any) => u.email === email);
-    
-    if (!userExists) return false;
-    
-    // In a real app, this would generate a reset token and send an email
-    // For demo purposes, we'll just reset to a default password
-    const updatedUsers = users.map((u: any) => {
-      if (u.email === email) {
-        return { ...u, password: "resetpassword" };
+  const updateProfilePicture = async (imageBase64: string) => {
+    if (!user) return false;
+
+    try {
+      // Store the avatar image
+      const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
+      
+      // Update the profile with the avatar URL
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          avatar_url: imageBase64,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating avatar:', error);
+        return false;
       }
-      return u;
-    });
-    
-    localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
-    return true;
-  };
 
-  const updateProfile = async (userData: Partial<User>): Promise<boolean> => {
-    if (!user) return false;
-    
-    const updatedUser = { ...user, ...userData };
-    setUser(updatedUser);
-    localStorage.setItem("snakeUser", JSON.stringify(updatedUser));
-    
-    // Update in registered users as well
-    const registeredUsers = localStorage.getItem("registeredUsers");
-    if (registeredUsers) {
-      const users = JSON.parse(registeredUsers);
-      const updatedUsers = users.map((u: any) => 
-        u.id === user.id ? { ...u, ...userData, password: u.password } : u
-      );
-      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
+      // Update local state
+      setProfile(prev => prev ? { ...prev, avatar_url: imageBase64 } : null);
+      return true;
+    } catch (error) {
+      console.error('Error in avatar update:', error);
+      return false;
     }
-    
-    return true;
-  };
-  
-  const updateProfilePicture = async (imageBase64: string): Promise<boolean> => {
-    if (!user) return false;
-    
-    const updatedUser = { ...user, profilePicture: imageBase64 };
-    setUser(updatedUser);
-    localStorage.setItem("snakeUser", JSON.stringify(updatedUser));
-    
-    // Update in registered users as well
-    const registeredUsers = localStorage.getItem("registeredUsers");
-    if (registeredUsers) {
-      const users = JSON.parse(registeredUsers);
-      const updatedUsers = users.map((u: any) => 
-        u.id === user.id ? { ...u, profilePicture: imageBase64, password: u.password } : u
-      );
-      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
-    }
-    
-    return true;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("snakeUser");
   };
 
   const value = {
     user,
+    profile,
     isAuthenticated: !!user,
+    session,
     login,
     register,
     logout,
     resetPassword,
     updateProfile,
-    updateProfilePicture
+    updateProfilePicture,
+    loading
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

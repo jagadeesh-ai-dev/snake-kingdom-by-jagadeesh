@@ -1,18 +1,10 @@
 
 import { Trophy, Calendar, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tournament } from "@/services/tournamentService";
 
 interface TournamentCardProps {
-  tournament: {
-    id: string;
-    name: string;
-    startDate: string;
-    participants: number;
-    maxParticipants: number;
-    status: string;
-    registered: boolean;
-    position?: number;
-  };
+  tournament: Tournament;
   onRegister: (id: string) => void;
   onUnregister: (id: string) => void;
 }
@@ -20,7 +12,7 @@ interface TournamentCardProps {
 export const TournamentCard = ({ tournament, onRegister, onUnregister }: TournamentCardProps) => {
   const isUpcoming = tournament.status === "upcoming";
   const isCompleted = tournament.status === "completed";
-  const isFull = tournament.participants >= tournament.maxParticipants;
+  const isFull = (tournament.participants || 0) >= tournament.max_participants;
   
   const formatDate = (dateString: string) => {
     const options = { 
@@ -41,15 +33,19 @@ export const TournamentCard = ({ tournament, onRegister, onUnregister }: Tournam
         )}
       </div>
       
+      {tournament.description && (
+        <p className="text-gray-400 mt-2 text-sm">{tournament.description}</p>
+      )}
+      
       <div className="mt-4 space-y-2">
         <div className="flex items-center text-gray-300">
           <Calendar className="h-4 w-4 mr-2" />
-          <span>{formatDate(tournament.startDate)}</span>
+          <span>{formatDate(tournament.start_date)}</span>
         </div>
         
         <div className="flex items-center text-gray-300">
           <Users className="h-4 w-4 mr-2" />
-          <span>{tournament.participants}/{tournament.maxParticipants} participants</span>
+          <span>{tournament.participants || 0}/{tournament.max_participants} participants</span>
         </div>
       </div>
       

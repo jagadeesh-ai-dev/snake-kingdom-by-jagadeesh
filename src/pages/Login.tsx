@@ -29,7 +29,7 @@ const Login = () => {
     setError("");
     
     try {
-      const success = await login(email, password);
+      const { success, error } = await login(email, password);
       
       if (success) {
         toast({
@@ -38,10 +38,11 @@ const Login = () => {
         });
         navigate("/dashboard");
       } else {
-        setError("Invalid email or password");
+        setError(error || "Invalid email or password");
       }
     } catch (err) {
       setError("An error occurred during login");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -115,12 +116,6 @@ const Login = () => {
             </p>
           </div>
         </form>
-        
-        <div className="mt-8 pt-6 border-t border-snake-grid">
-          <p className="text-xs text-center text-gray-500">
-            For demo login, use: demo@example.com / password
-          </p>
-        </div>
       </div>
     </div>
   );
