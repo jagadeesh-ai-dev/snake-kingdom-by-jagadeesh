@@ -1,6 +1,6 @@
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/auth";
 import { Toaster } from "@/components/ui/toaster";
 import Layout from "@/components/Layout";
 import Index from "@/pages/Index";
