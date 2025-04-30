@@ -36,13 +36,21 @@ export const registerUser = async (email: string, username: string, password: st
       return { success: false, error: 'Username already taken' };
     }
 
-    // Register the user
+    // Register the user with custom email template
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           username
+        },
+        emailRedirectTo: `${window.location.origin}/login`,
+        emailOptions: {
+          subject: "Welcome to Snake Kingdom - Confirm Your Email",
+          data: {
+            product_name: "Snake Kingdom",
+            product_url: window.location.origin
+          }
         }
       }
     });
@@ -123,6 +131,59 @@ export const updateUserProfilePicture = async (userId: string, imageBase64: stri
     return true;
   } catch (error) {
     console.error('Error in avatar update:', error);
+    return false;
+  }
+};
+
+export const searchUsers = async (searchTerm: string) => {
+  try {
+    // Search users by username
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .ilike('username', `%${searchTerm}%`)
+      .limit(10);
+    
+    if (error) {
+      console.error('Error searching users:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in user search:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+};
+
+export const saveGameData = async (userId: string, score: number, gameHistory: any[]) => {
+  try {
+    // Update highscore if the new score is higher
+    if (score > 0) {
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('highscore')
+        .eq('id', userId)
+        .single();
+      
+      if (userProfile && (userProfile.highscore === null || score > userProfile.highscore)) {
+        await supabase
+          .from('profiles')
+          .update({
+            highscore: score,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+      }
+    }
+    
+    // Save game history to localStorage
+    const historyKey = `gameHistory-${userId}`;
+    localStorage.setItem(historyKey, JSON.stringify(gameHistory));
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving game data:', error);
     return false;
   }
 };

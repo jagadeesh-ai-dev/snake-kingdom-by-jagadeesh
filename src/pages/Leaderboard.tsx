@@ -1,9 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import { Button } from "@/components/ui/button";
 import { Trophy, ChevronUp, ChevronDown, Search, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 type LeaderboardEntry = {
   id: string;
@@ -14,27 +16,48 @@ type LeaderboardEntry = {
 
 const Leaderboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Load registered users from localStorage
-    const registeredUsers = localStorage.getItem("registeredUsers");
+    // Fetch leaderboard data from Supabase
+    const fetchLeaderboard = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, highscore, avatar_url')
+          .not('highscore', 'is', null)
+          .order('highscore', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // Transform the data to match our LeaderboardEntry type
+        const entries: LeaderboardEntry[] = data.map((item) => ({
+          id: item.id,
+          username: item.username,
+          highScore: item.highscore || 0,
+          profilePicture: item.avatar_url,
+        }));
+        
+        setLeaderboardData(entries);
+      } catch (error) {
+        console.error('Error fetching leaderboard data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load leaderboard data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    if (registeredUsers) {
-      const users = JSON.parse(registeredUsers);
-      
-      // Map to leaderboard entries
-      const entries: LeaderboardEntry[] = users.map((user: any) => ({
-        id: user.id,
-        username: user.username,
-        highScore: user.highScore || 0,
-        profilePicture: user.profilePicture,
-      }));
-      
-      setLeaderboardData(entries);
-    }
+    fetchLeaderboard();
   }, []);
   
   // Handle sorting
@@ -135,7 +158,11 @@ const Leaderboard = () => {
           </div>
         </div>
         
-        {filteredData.length > 0 ? (
+        {loading ? (
+          <div className="p-8 text-center">
+            <p className="text-gray-400">Loading leaderboard data...</p>
+          </div>
+        ) : filteredData.length > 0 ? (
           <div className="divide-y divide-snake-grid">
             {filteredData.map((entry, index) => {
               const isCurrentUser = user?.id === entry.id;

@@ -1,12 +1,13 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import GameEngine, { Difficulty } from "@/components/game/GameEngine";
 import GameControls from "@/components/game/GameControls";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Trophy } from "lucide-react";
+import { saveGameData } from "@/contexts/auth/authService";
 
 const Game = () => {
   const { isAuthenticated, user } = useAuth();
@@ -23,13 +24,17 @@ const Game = () => {
       const savedHistory = localStorage.getItem(historyKey);
       
       if (savedHistory) {
-        setGameHistory(JSON.parse(savedHistory));
+        try {
+          setGameHistory(JSON.parse(savedHistory));
+        } catch (error) {
+          console.error("Error parsing game history:", error);
+        }
       }
     }
   }, [isAuthenticated, user]);
   
   // Handle game over
-  const handleGameOver = (score: number) => {
+  const handleGameOver = async (score: number) => {
     if (isAuthenticated && user) {
       // Save game to history
       const newGame = { score, date: new Date().toISOString() };
@@ -37,21 +42,22 @@ const Game = () => {
       
       setGameHistory(updatedHistory);
       
-      // Save to localStorage
-      const historyKey = `gameHistory-${user.id}`;
-      localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
+      // Save to database and localStorage
+      const success = await saveGameData(user.id, score, updatedHistory);
       
-      toast({
-        title: "Game Over",
-        description: `You scored ${score} points!`,
-      });
-      
-      // Update high score if needed
-      if (score > (user.highScore || 0)) {
+      if (success) {
         toast({
-          title: "New High Score!",
-          description: "You've beaten your previous record!",
+          title: "Game Over",
+          description: `You scored ${score} points!`,
         });
+        
+        // Update high score if needed
+        if (score > (user.highScore || 0)) {
+          toast({
+            title: "New High Score!",
+            description: "You've beaten your previous record!",
+          });
+        }
       }
     }
   };

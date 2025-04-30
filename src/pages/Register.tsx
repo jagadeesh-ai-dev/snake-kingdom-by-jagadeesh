@@ -1,11 +1,13 @@
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, Info } from "lucide-react";
 
 const Register = () => {
   const { register } = useAuth();
@@ -19,6 +21,7 @@ const Register = () => {
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,11 +49,11 @@ const Register = () => {
       const { success, error } = await register(email, username, password);
       
       if (success) {
+        setSuccess(true);
         toast({
           title: "Registration Successful",
-          description: "Welcome to Snake Kingdom!",
+          description: "Please check your email to confirm your account.",
         });
-        navigate("/dashboard");
       } else {
         setError(error || "Username or email already exists");
       }
@@ -61,6 +64,49 @@ const Register = () => {
       setIsLoading(false);
     }
   };
+  
+  if (success) {
+    return (
+      <div className="min-h-[calc(100vh-16rem)] flex items-center justify-center py-12">
+        <div className="w-full max-w-md px-8 py-10 bg-snake-background border border-snake-primary/30 rounded-lg shadow-xl">
+          <div className="text-center mb-6">
+            <div className="bg-green-500 rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-white">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Check your email</h1>
+            <p className="text-gray-400">
+              We've sent a confirmation email to <span className="font-medium text-snake-primary">{email}</span>.
+            </p>
+          </div>
+          
+          <Alert className="mb-6 bg-gray-800 border-snake-primary/50">
+            <Info className="h-4 w-4 text-snake-primary" />
+            <AlertDescription>
+              Please check your inbox (and spam folder) and click the confirmation link to activate your account.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="space-y-4">
+            <Button 
+              className="w-full bg-snake-primary hover:bg-purple-600"
+              onClick={() => navigate('/login')}
+            >
+              Go to Login
+            </Button>
+            
+            <p className="text-center text-sm text-gray-400">
+              Didn't receive the email? Check your spam folder or{" "}
+              <Button variant="link" className="p-0 h-auto text-sm text-snake-primary" onClick={() => setSuccess(false)}>
+                try again
+              </Button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-[calc(100vh-16rem)] flex items-center justify-center py-12">
@@ -136,6 +182,13 @@ const Register = () => {
               className="bg-gray-800 border-gray-700"
             />
           </div>
+          
+          <Alert className="bg-gray-800 border-snake-primary/30">
+            <AlertTriangle className="h-4 w-4 text-snake-primary" />
+            <AlertDescription>
+              You will need to confirm your email before being able to login.
+            </AlertDescription>
+          </Alert>
           
           <div className="flex items-start space-x-3">
             <Checkbox
