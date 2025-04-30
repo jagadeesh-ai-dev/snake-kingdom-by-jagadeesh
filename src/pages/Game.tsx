@@ -74,9 +74,7 @@ const Game = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-snake-primary">
-          Snake Kingdom
-        </h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-snake-text">Snake Game</h1>
         <Button 
           variant="outline"
           onClick={() => navigate('/leaderboard')}
@@ -105,7 +103,7 @@ const Game = () => {
         <div>
           {/* Player Stats */}
           {isAuthenticated && user ? (
-            <div className="bg-gradient-to-br from-snake-bg-dark via-snake-bg-mid to-snake-bg-light border border-snake-primary/30 rounded-lg p-4 shadow-lg">
+            <div className="bg-snake-background border border-snake-primary/30 rounded-lg p-4">
               <h2 className="text-xl font-semibold mb-4 border-b border-snake-grid pb-2">Player Stats</h2>
               <div className="space-y-4">
                 <div>
@@ -120,7 +118,7 @@ const Game = () => {
                       {gameHistory.slice(0, 5).map((game, index) => (
                         <div 
                           key={index} 
-                          className="bg-gray-800 bg-opacity-30 p-2 rounded flex justify-between hover:bg-gray-800 hover:bg-opacity-40 transition-colors"
+                          className="bg-gray-800 bg-opacity-30 p-2 rounded flex justify-between"
                         >
                           <span>{formatDate(game.date)}</span>
                           <span className="font-medium text-snake-score">{game.score}</span>
@@ -132,7 +130,7 @@ const Game = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gradient-to-br from-snake-bg-dark via-snake-bg-mid to-snake-bg-light border border-snake-primary/30 rounded-lg p-6 text-center shadow-lg">
+            <div className="bg-snake-background border border-snake-primary/30 rounded-lg p-6 text-center">
               <h2 className="text-xl font-semibold mb-3">Sign in to track your progress</h2>
               <p className="mb-4 text-gray-400">Create an account to save your high scores and compete on the leaderboard.</p>
               <div className="space-x-3">

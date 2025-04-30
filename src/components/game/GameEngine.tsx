@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Fullscreen, Minimize } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Fullscreen } from "lucide-react";
 
 export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 export type Difficulty = "EASY" | "MEDIUM" | "HARD" | "EXTREME";
@@ -27,12 +28,11 @@ type GameEngineProps = {
   onGameOver?: (score: number) => void;
 };
 
-// Adjusted speed settings to be slower across all difficulty levels
 const difficultySettings = {
-  EASY: { speed: 250, gridSize: 15 },    // Slower (was 200)
-  MEDIUM: { speed: 200, gridSize: 20 },  // Slower (was 150)
-  HARD: { speed: 150, gridSize: 25 },    // Slower (was 100)
-  EXTREME: { speed: 120, gridSize: 30 }, // Slower (was 70)
+  EASY: { speed: 200, gridSize: 15 },
+  MEDIUM: { speed: 150, gridSize: 20 },
+  HARD: { speed: 100, gridSize: 25 },
+  EXTREME: { speed: 70, gridSize: 30 },
 };
 
 const GameEngine: React.FC<GameEngineProps> = ({
@@ -441,22 +441,11 @@ const GameEngine: React.FC<GameEngineProps> = ({
         let cellClasses = "snake-cell absolute";
         
         if (isSnakeHead) {
-          cellClasses += " snake-head rounded-full";
+          cellClasses += " bg-snake-primary rounded-sm";
         } else if (isSnakeBody) {
-          // Apply different styling based on segment position for a more organic look
-          const segmentIndex = gameState.snake.findIndex(segment => segment.x === x && segment.y === y);
-          const isNeckSegment = segmentIndex === 1 || segmentIndex === 2;
-          const isTailSegment = segmentIndex === gameState.snake.length - 1 || segmentIndex === gameState.snake.length - 2;
-          
-          if (isNeckSegment) {
-            cellClasses += " snake-neck rounded-lg";
-          } else if (isTailSegment) {
-            cellClasses += " snake-tail rounded-lg";
-          } else {
-            cellClasses += " snake-body rounded-lg";
-          }
+          cellClasses += " bg-snake-secondary rounded-sm";
         } else if (isFood) {
-          cellClasses += " snake-food rounded-full animate-pulse-gentle";
+          cellClasses += " bg-snake-food rounded-full animate-pulse-gentle";
         } else {
           cellClasses += " bg-transparent";
         }
@@ -486,15 +475,8 @@ const GameEngine: React.FC<GameEngineProps> = ({
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
     >
-      {/* Game grid with enhanced background */}
-      <div className="snake-grid relative w-full h-full rounded-lg overflow-hidden bg-gradient-to-br from-snake-bg-dark via-snake-bg-mid to-snake-bg-light">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 w-full h-full">
-          <div className="absolute top-[20%] left-[15%] w-8 h-8 opacity-20 rounded-full bg-snake-accent animate-pulse-gentle"></div>
-          <div className="absolute top-[70%] left-[80%] w-6 h-6 opacity-15 rounded-full bg-snake-accent animate-pulse-gentle" style={{animationDelay: '1s'}}></div>
-          <div className="absolute top-[40%] left-[60%] w-10 h-10 opacity-10 rounded-full bg-snake-accent animate-pulse-gentle" style={{animationDelay: '1.5s'}}></div>
-          <div className="absolute top-[10%] right-[10%] w-12 h-12 opacity-5 rounded-full bg-snake-accent animate-pulse-gentle" style={{animationDelay: '0.8s'}}></div>
-        </div>
+      {/* Game grid */}
+      <div className="snake-grid relative w-full h-full bg-snake-background rounded-lg overflow-hidden">
         {renderGrid()}
       </div>
       
@@ -504,31 +486,18 @@ const GameEngine: React.FC<GameEngineProps> = ({
           {gameState.paused ? (
             <>
               <h2 className="text-4xl font-bold text-white mb-6">Paused</h2>
-              <div className="flex flex-col gap-3 mb-6">
-                <button 
-                  className="pixel-button"
-                  onClick={togglePause}
-                >
-                  Resume Game
-                </button>
-                <button 
-                  className="pixel-button-secondary"
-                  onClick={resetGame}
-                >
-                  Restart Game
-                </button>
-                <button 
-                  className="pixel-button-fullscreen"
-                  onClick={toggleFullscreen}
-                  aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                >
-                  {isFullscreen ? (
-                    <><Minimize size={18} className="mr-2" /> Exit Fullscreen</>
-                  ) : (
-                    <><Fullscreen size={18} className="mr-2" /> Enter Fullscreen</>
-                  )}
-                </button>
-              </div>
+              <button 
+                className="pixel-button mb-4" 
+                onClick={togglePause}
+              >
+                Resume Game
+              </button>
+              <button 
+                className="pixel-button-secondary" 
+                onClick={resetGame}
+              >
+                Restart Game
+              </button>
             </>
           ) : (
             <>
@@ -609,7 +578,7 @@ const GameEngine: React.FC<GameEngineProps> = ({
             onClick={toggleFullscreen}
             aria-label="Toggle fullscreen"
           >
-            {isFullscreen ? <Minimize size={18} /> : <Fullscreen size={18} />}
+            <Fullscreen size={18} />
           </button>
         </div>
       </div>
