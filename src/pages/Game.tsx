@@ -14,7 +14,7 @@ const Game = () => {
   const navigate = useNavigate();
   
   const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
-  const [gameHistory, setGameHistory] = useState<{score: number; date: string}[]>([]);
+  const [gameHistory, setGameHistory] = useState<{score: number; distance: number; date: string}[]>([]);
   
   // Load game history from localStorage
   useEffect(() => {
@@ -29,10 +29,10 @@ const Game = () => {
   }, [isAuthenticated, user]);
   
   // Handle game over
-  const handleGameOver = (score: number) => {
+  const handleGameOver = (score: number, distance: number) => {
     if (isAuthenticated && user) {
       // Save game to history
-      const newGame = { score, date: new Date().toISOString() };
+      const newGame = { score, distance, date: new Date().toISOString() };
       const updatedHistory = [newGame, ...gameHistory].slice(0, 10); // Keep last 10 games
       
       setGameHistory(updatedHistory);
@@ -42,8 +42,8 @@ const Game = () => {
       localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
       
       toast({
-        title: "Game Over",
-        description: `You scored ${score} points!`,
+        title: "Adventure Complete",
+        description: `You scored ${score} points and traveled ${distance} units!`,
       });
       
       // Update high score if needed
@@ -74,7 +74,7 @@ const Game = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-snake-text">Snake Game</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-snake-text">Infinite Snake Adventure</h1>
         <Button 
           variant="outline"
           onClick={() => navigate('/leaderboard')}
@@ -104,7 +104,7 @@ const Game = () => {
           {/* Player Stats */}
           {isAuthenticated && user ? (
             <div className="bg-snake-background border border-snake-primary/30 rounded-lg p-4">
-              <h2 className="text-xl font-semibold mb-4 border-b border-snake-grid pb-2">Player Stats</h2>
+              <h2 className="text-xl font-semibold mb-4 border-b border-snake-grid pb-2">Adventurer Stats</h2>
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-medium text-snake-text">High Score</h3>
@@ -113,14 +113,17 @@ const Game = () => {
                 
                 {gameHistory.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-medium text-snake-text mb-2">Recent Games</h3>
+                    <h3 className="text-lg font-medium text-snake-text mb-2">Recent Adventures</h3>
                     <div className="space-y-2">
                       {gameHistory.slice(0, 5).map((game, index) => (
                         <div 
                           key={index} 
                           className="bg-gray-800 bg-opacity-30 p-2 rounded flex justify-between"
                         >
-                          <span>{formatDate(game.date)}</span>
+                          <div className="flex flex-col">
+                            <span>{formatDate(game.date)}</span>
+                            <span className="text-xs text-purple-300">Distance: {game.distance}</span>
+                          </div>
                           <span className="font-medium text-snake-score">{game.score}</span>
                         </div>
                       ))}
@@ -131,7 +134,7 @@ const Game = () => {
             </div>
           ) : (
             <div className="bg-snake-background border border-snake-primary/30 rounded-lg p-6 text-center">
-              <h2 className="text-xl font-semibold mb-3">Sign in to track your progress</h2>
+              <h2 className="text-xl font-semibold mb-3">Sign in to track your adventures</h2>
               <p className="mb-4 text-gray-400">Create an account to save your high scores and compete on the leaderboard.</p>
               <div className="space-x-3">
                 <Button 
