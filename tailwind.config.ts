@@ -66,6 +66,10 @@ export default {
           text: '#E2E8F0',
           score: '#10B981',
           danger: '#EF4444',
+          accent: '#A78BFA',
+          'bg-dark': '#0D1425',
+          'bg-mid': '#141C35',
+          'bg-light': '#1A2342',
         }
       },
       borderRadius: {
