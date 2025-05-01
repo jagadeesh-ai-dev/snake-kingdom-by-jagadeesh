@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,22 +33,26 @@ const Friends = () => {
           .select(`
             id, 
             user_id,
-            profiles!friends_user_id_fkey(id, username, avatar_url)
+            profiles:user_id(id, username, avatar_url)
           `)
           .eq('friend_id', user.id)
           .eq('status', 'pending');
         
         if (error) throw error;
         
-        // Transform the data
-        const requests: FriendRequest[] = data.map(request => ({
-          id: request.profiles.id,
-          username: request.profiles.username,
-          avatar_url: request.profiles.avatar_url,
-          request_id: request.id
-        }));
-        
-        setPendingRequests(requests);
+        if (data) {
+          // Transform the data
+          const requests: FriendRequest[] = data
+            .filter(request => request.profiles !== null) // Filter out any null profiles
+            .map(request => ({
+              id: request.profiles.id,
+              username: request.profiles.username,
+              avatar_url: request.profiles.avatar_url,
+              request_id: request.id
+            }));
+          
+          setPendingRequests(requests);
+        }
       } catch (error) {
         console.error("Error fetching friend requests:", error);
         toast({
@@ -63,7 +66,7 @@ const Friends = () => {
     };
     
     fetchFriendRequests();
-  }, [user]);
+  }, [user, toast]);
   
   const handleFriendRequest = async (requestId: string, action: 'accept' | 'reject') => {
     if (!user) return;

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Profile } from "./types";
 
@@ -45,13 +44,7 @@ export const registerUser = async (email: string, username: string, password: st
           username
         },
         emailRedirectTo: `${window.location.origin}/login`,
-        emailOptions: {
-          subject: "Welcome to Snake Kingdom - Confirm Your Email",
-          data: {
-            product_name: "Snake Kingdom",
-            product_url: window.location.origin
-          }
-        }
+        // Removing emailOptions as it's not supported in this version
       }
     });
 

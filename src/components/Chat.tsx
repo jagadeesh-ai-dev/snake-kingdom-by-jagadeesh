@@ -42,39 +42,59 @@ const Chat = () => {
     
     const fetchFriends = async () => {
       try {
-        // Fetch friends where user is either the requestor or the receiver
-        const { data: friendsData, error } = await supabase
+        // We'll use separate queries and handle the data transformation in JS
+        // First fetch accepted friendships where user is the requestor
+        const { data: sentRequests, error: sentError } = await supabase
           .from('friends')
           .select(`
-            user_id, friend_id,
-            friend:profiles!friends_friend_id_fkey(id, username, avatar_url),
-            user:profiles!friends_user_id_fkey(id, username, avatar_url)
+            friend_id,
+            profiles!friends_friend_id_fkey(id, username, avatar_url)
           `)
-          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+          .eq('user_id', user.id)
           .eq('status', 'accepted');
         
-        if (error) throw error;
+        if (sentError) throw sentError;
         
-        if (friendsData) {
-          // Transform data to get a clean friends list
-          const friendsList = friendsData.map(item => {
-            // If user is the requestor, return the friend data
-            // Otherwise return the user data (who is the friend from this user's perspective)
-            return item.user_id === user.id 
-              ? {
-                  id: item.friend?.id,
-                  username: item.friend?.username,
-                  avatar_url: item.friend?.avatar_url
-                }
-              : {
-                  id: item.user?.id,
-                  username: item.user?.username,
-                  avatar_url: item.user?.avatar_url
-                };
-          }).filter(f => f.id !== undefined) as Friend[];
-          
-          setFriends(friendsList);
+        // Then fetch accepted friendships where user is the receiver
+        const { data: receivedRequests, error: receivedError } = await supabase
+          .from('friends')
+          .select(`
+            user_id,
+            profiles!friends_user_id_fkey(id, username, avatar_url)
+          `)
+          .eq('friend_id', user.id)
+          .eq('status', 'accepted');
+        
+        if (receivedError) throw receivedError;
+        
+        // Combine and transform the results
+        const friendsList: Friend[] = [];
+        
+        if (sentRequests) {
+          sentRequests.forEach(item => {
+            if (item.profiles) {
+              friendsList.push({
+                id: item.profiles.id,
+                username: item.profiles.username,
+                avatar_url: item.profiles.avatar_url
+              });
+            }
+          });
         }
+        
+        if (receivedRequests) {
+          receivedRequests.forEach(item => {
+            if (item.profiles) {
+              friendsList.push({
+                id: item.profiles.id,
+                username: item.profiles.username,
+                avatar_url: item.profiles.avatar_url
+              });
+            }
+          });
+        }
+        
+        setFriends(friendsList);
       } catch (error) {
         console.error("Error fetching friends:", error);
         toast({
@@ -86,7 +106,7 @@ const Chat = () => {
     };
     
     fetchFriends();
-  }, [user]);
+  }, [user, toast]);
   
   // Fetch messages when a friend is selected
   useEffect(() => {
@@ -99,7 +119,7 @@ const Chat = () => {
           .from('messages')
           .select(`
             id, sender_id, receiver_id, content, created_at,
-            sender:profiles!messages_sender_id_fkey(username, avatar_url)
+            profiles!messages_sender_id_fkey(username, avatar_url)
           `)
           .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedFriend.id}),and(sender_id.eq.${selectedFriend.id},receiver_id.eq.${user.id})`)
           .order('created_at', { ascending: true });
@@ -107,7 +127,20 @@ const Chat = () => {
         if (error) throw error;
         
         if (data) {
-          setMessages(data as Message[]);
+          // Transform the data to match our Message type
+          const formattedMessages: Message[] = data.map(item => ({
+            id: item.id,
+            sender_id: item.sender_id,
+            receiver_id: item.receiver_id,
+            content: item.content,
+            created_at: item.created_at,
+            sender: {
+              username: item.profiles?.username || 'Unknown',
+              avatar_url: item.profiles?.avatar_url
+            }
+          }));
+          
+          setMessages(formattedMessages);
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -140,8 +173,15 @@ const Chat = () => {
             
         if (data) {
           const newMessage: Message = {
-            ...payload.new,
-            sender: data
+            id: payload.new.id,
+            sender_id: payload.new.sender_id,
+            receiver_id: payload.new.receiver_id,
+            content: payload.new.content,
+            created_at: payload.new.created_at,
+            sender: {
+              username: data.username,
+              avatar_url: data.avatar_url
+            }
           };
           
           setMessages(prev => [...prev, newMessage]);
@@ -153,7 +193,7 @@ const Chat = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, selectedFriend]);
+  }, [user, selectedFriend, toast]);
   
   // Auto-scroll to bottom when messages update
   useEffect(() => {
