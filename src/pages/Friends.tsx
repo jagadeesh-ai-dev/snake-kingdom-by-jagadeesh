@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,11 +19,24 @@ type FriendRequest = {
 };
 
 const Friends = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
   
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to access the friends page",
+      });
+      navigate('/login');
+    }
+  }, [isAuthenticated, loading, navigate, toast]);
+  
+  // Fetch friend requests
   useEffect(() => {
     if (!user) return;
     
@@ -75,7 +89,7 @@ const Friends = () => {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        setPageLoading(false);
       }
     };
     
@@ -126,6 +140,22 @@ const Friends = () => {
     }
   };
   
+  // If still loading auth state, show loading indicator
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center h-[50vh]">
+        <div className="text-center">
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // If not authenticated, user will be redirected by the useEffect
+  if (!isAuthenticated) {
+    return null;
+  }
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Friends & Messaging</h1>
@@ -172,7 +202,7 @@ const Friends = () => {
               <CardTitle>Friend Requests</CardTitle>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {pageLoading ? (
                 <p className="text-center text-gray-400 py-8">Loading friend requests...</p>
               ) : pendingRequests.length > 0 ? (
                 <div className="space-y-4">

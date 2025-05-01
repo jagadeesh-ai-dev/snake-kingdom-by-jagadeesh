@@ -28,13 +28,14 @@ type Message = {
 };
 
 const Chat = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchingFriends, setFetchingFriends] = useState(true);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   
   // Fetch friends list
@@ -43,12 +44,13 @@ const Chat = () => {
     
     const fetchFriends = async () => {
       try {
+        setFetchingFriends(true);
         const friendsList: Friend[] = [];
         
         // First, get friends where user is the requestor
         const { data: sentRequests, error: sentError } = await supabase
           .from('friends')
-          .select('friend_id, status')
+          .select('friend_id')
           .eq('user_id', user.id)
           .eq('status', 'accepted');
         
@@ -57,7 +59,7 @@ const Chat = () => {
         // Then, get friends where user is the receiver
         const { data: receivedRequests, error: receivedError } = await supabase
           .from('friends')
-          .select('user_id, status')
+          .select('user_id')
           .eq('friend_id', user.id)
           .eq('status', 'accepted');
         
@@ -66,42 +68,48 @@ const Chat = () => {
         // Get profiles for sent requests (where the user is the requestor)
         if (sentRequests && sentRequests.length > 0) {
           const friendIds = sentRequests.map(req => req.friend_id);
-          const { data: friendProfiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username, avatar_url')
-            .in('id', friendIds);
           
-          if (profilesError) throw profilesError;
-          
-          if (friendProfiles) {
-            friendProfiles.forEach(profile => {
-              friendsList.push({
-                id: profile.id,
-                username: profile.username,
-                avatar_url: profile.avatar_url
+          if (friendIds.length > 0) {
+            const { data: friendProfiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url')
+              .in('id', friendIds);
+            
+            if (profilesError) throw profilesError;
+            
+            if (friendProfiles) {
+              friendProfiles.forEach(profile => {
+                friendsList.push({
+                  id: profile.id,
+                  username: profile.username,
+                  avatar_url: profile.avatar_url
+                });
               });
-            });
+            }
           }
         }
         
         // Get profiles for received requests (where the user is the receiver)
         if (receivedRequests && receivedRequests.length > 0) {
           const friendIds = receivedRequests.map(req => req.user_id);
-          const { data: friendProfiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username, avatar_url')
-            .in('id', friendIds);
           
-          if (profilesError) throw profilesError;
-          
-          if (friendProfiles) {
-            friendProfiles.forEach(profile => {
-              friendsList.push({
-                id: profile.id,
-                username: profile.username,
-                avatar_url: profile.avatar_url
+          if (friendIds.length > 0) {
+            const { data: friendProfiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url')
+              .in('id', friendIds);
+            
+            if (profilesError) throw profilesError;
+            
+            if (friendProfiles) {
+              friendProfiles.forEach(profile => {
+                friendsList.push({
+                  id: profile.id,
+                  username: profile.username,
+                  avatar_url: profile.avatar_url
+                });
               });
-            });
+            }
           }
         }
         
@@ -113,6 +121,8 @@ const Chat = () => {
           description: "Failed to load friends list",
           variant: "destructive",
         });
+      } finally {
+        setFetchingFriends(false);
       }
     };
     
@@ -125,6 +135,8 @@ const Chat = () => {
     
     const fetchMessages = async () => {
       try {
+        setLoading(true);
+        
         // Fetch messages between current user and selected friend
         const { data, error } = await supabase
           .from('messages')
@@ -137,6 +149,12 @@ const Chat = () => {
         if (data) {
           // Get all the sender IDs to fetch their profiles
           const senderIds = [...new Set(data.map(msg => msg.sender_id))];
+          
+          if (senderIds.length === 0) {
+            setMessages([]);
+            setLoading(false);
+            return;
+          }
           
           // Fetch sender profiles
           const { data: profiles, error: profilesError } = await supabase
@@ -169,6 +187,8 @@ const Chat = () => {
           }));
           
           setMessages(formattedMessages);
+        } else {
+          setMessages([]);
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -177,6 +197,8 @@ const Chat = () => {
           description: "Failed to load messages",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -199,21 +221,19 @@ const Chat = () => {
           .eq('id', payload.new.sender_id)
           .single();
             
-        if (data) {
-          const newMessage: Message = {
-            id: payload.new.id,
-            sender_id: payload.new.sender_id,
-            receiver_id: payload.new.receiver_id,
-            content: payload.new.content,
-            created_at: payload.new.created_at,
-            sender: {
-              username: data.username,
-              avatar_url: data.avatar_url
-            }
-          };
-          
-          setMessages(prev => [...prev, newMessage]);
-        }
+        const newMessage: Message = {
+          id: payload.new.id,
+          sender_id: payload.new.sender_id,
+          receiver_id: payload.new.receiver_id,
+          content: payload.new.content,
+          created_at: payload.new.created_at,
+          sender: data ? {
+            username: data.username,
+            avatar_url: data.avatar_url
+          } : { username: 'Unknown', avatar_url: null }
+        };
+        
+        setMessages(prev => [...prev, newMessage]);
       })
       .subscribe();
     
@@ -258,6 +278,14 @@ const Chat = () => {
     }
   };
   
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400">
+        Please log in to chat with friends
+      </div>
+    );
+  }
+  
   return (
     <div className="flex h-[600px] border border-snake-primary/30 rounded-lg overflow-hidden">
       {/* Friends List */}
@@ -266,7 +294,11 @@ const Chat = () => {
           <h2 className="font-semibold text-snake-text">Friends</h2>
         </div>
         <ScrollArea className="h-[calc(600px-50px)]">
-          {friends.length > 0 ? (
+          {fetchingFriends ? (
+            <div className="p-4 text-center text-gray-400">
+              Loading friends...
+            </div>
+          ) : friends.length > 0 ? (
             <div className="divide-y divide-gray-800">
               {friends.map(friend => (
                 <div 
@@ -320,7 +352,11 @@ const Chat = () => {
             {/* Messages */}
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               <div className="space-y-4">
-                {messages.length > 0 ? (
+                {loading && messages.length === 0 ? (
+                  <div className="text-center text-gray-400">
+                    Loading messages...
+                  </div>
+                ) : messages.length > 0 ? (
                   messages.map(message => {
                     const isOwnMessage = message.sender_id === user?.id;
                     
@@ -334,7 +370,7 @@ const Chat = () => {
                             <Avatar className="mt-1">
                               <AvatarImage src={message.sender?.avatar_url || undefined} />
                               <AvatarFallback>
-                                {message.sender?.username.substring(0, 2).toUpperCase() || "?"}
+                                {message.sender?.username?.substring(0, 2).toUpperCase() || "?"}
                               </AvatarFallback>
                             </Avatar>
                           )}

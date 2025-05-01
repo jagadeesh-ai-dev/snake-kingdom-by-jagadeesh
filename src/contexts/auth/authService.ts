@@ -20,8 +20,28 @@ export const loginUser = async (email: string, password: string) => {
   }
 };
 
+// Username validation function
+export const validateUsername = (username: string): { valid: boolean; message?: string } => {
+  // Check if username contains only lowercase letters, numbers, and underscores
+  const usernameRegex = /^[a-z0-9_]+$/;
+  if (!usernameRegex.test(username)) {
+    return { 
+      valid: false, 
+      message: 'Username can only contain lowercase letters, numbers, and underscores' 
+    };
+  }
+  
+  return { valid: true };
+};
+
 export const registerUser = async (email: string, username: string, password: string) => {
   try {
+    // Validate username
+    const validation = validateUsername(username);
+    if (!validation.valid) {
+      return { success: false, error: validation.message };
+    }
+    
     // Check if username exists first
     const { data: existingUsers, error: queryError } = await supabase
       .from('profiles')

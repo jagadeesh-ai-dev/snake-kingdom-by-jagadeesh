@@ -1,8 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, User, UserPlus, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { searchUsers } from "@/contexts/auth/authService";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,8 +21,22 @@ const UserSearch = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   
+  // Search as user types with debounce
+  useEffect(() => {
+    if (!searchTerm.trim() || searchTerm.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    
+    const debounceTimeout = setTimeout(() => {
+      handleSearch();
+    }, 500);
+    
+    return () => clearTimeout(debounceTimeout);
+  }, [searchTerm]);
+  
   const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
+    if (!searchTerm.trim() || searchTerm.trim().length < 2) return;
     
     setLoading(true);
     const { success, data, error } = await searchUsers(searchTerm);
@@ -37,19 +50,45 @@ const UserSearch = () => {
       
       // Check for any pending friend requests
       if (user && filteredResults.length > 0) {
+        // Get IDs of users in the results
         const ids = filteredResults.map(result => result.id);
-        const { data: friendships } = await supabase
+        
+        // Check for outgoing friend requests
+        const { data: outgoingRequests } = await supabase
           .from('friends')
           .select('friend_id, status')
           .eq('user_id', user.id)
           .in('friend_id', ids);
           
-        if (friendships) {
-          const pendingIds = friendships
-            .filter(fs => fs.status === 'pending')
-            .map(fs => fs.friend_id);
-          setPendingRequests(pendingIds);
+        // Check for incoming friend requests
+        const { data: incomingRequests } = await supabase
+          .from('friends')
+          .select('user_id, status')
+          .eq('friend_id', user.id)
+          .in('user_id', ids);
+        
+        // Combine both to get all pending requests
+        let pendingIds: string[] = [];
+        
+        if (outgoingRequests) {
+          pendingIds = [
+            ...pendingIds,
+            ...outgoingRequests
+              .filter(req => req.status === 'pending')
+              .map(req => req.friend_id)
+          ];
         }
+        
+        if (incomingRequests) {
+          pendingIds = [
+            ...pendingIds,
+            ...incomingRequests
+              .filter(req => req.status === 'pending')
+              .map(req => req.user_id)
+          ];
+        }
+        
+        setPendingRequests(pendingIds);
       }
     } else {
       toast({
@@ -63,17 +102,32 @@ const UserSearch = () => {
   };
   
   const handleAddFriend = async (friendId: string) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to add friends",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       // Check if friendship already exists
-      const { data: existingFriendship } = await supabase
+      const { data: outgoingFriendship } = await supabase
         .from('friends')
         .select('*')
-        .or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`)
+        .eq('user_id', user.id)
+        .eq('friend_id', friendId)
         .single();
       
-      if (existingFriendship) {
+      const { data: incomingFriendship } = await supabase
+        .from('friends')
+        .select('*')
+        .eq('user_id', friendId)
+        .eq('friend_id', user.id)
+        .single();
+      
+      if (outgoingFriendship || incomingFriendship) {
         toast({
           title: "Already Friends",
           description: "You are already friends with this user or have a pending request",
@@ -111,30 +165,22 @@ const UserSearch = () => {
   
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input
-            type="text"
-            placeholder="Search users by username..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-gray-800 border-gray-700"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSearch();
-              }
-            }}
-          />
-        </div>
-        <Button 
-          onClick={handleSearch} 
-          disabled={loading || !searchTerm.trim()}
-          className="bg-snake-primary hover:bg-purple-600"
-        >
-          {loading ? "Searching..." : "Search"}
-        </Button>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+        <Input
+          type="text"
+          placeholder="Search users by username (minimum 2 characters)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 bg-gray-800 border-gray-700"
+        />
       </div>
+      
+      {loading && (
+        <div className="text-center py-4 text-gray-400">
+          Searching...
+        </div>
+      )}
       
       {results.length > 0 ? (
         <div className="space-y-2 mt-4">
@@ -156,15 +202,13 @@ const UserSearch = () => {
                   </div>
                   <span className="font-medium">{user.username}</span>
                 </div>
-                <Button 
-                  size="sm" 
-                  variant="outline"
+                <button 
                   onClick={() => handleAddFriend(user.id)}
                   disabled={pendingRequests.includes(user.id)}
-                  className={`flex items-center gap-1 text-sm ${
-                    pendingRequests.includes(user.id) ? 
-                      'bg-gray-700 text-gray-400' : 
-                      ''
+                  className={`flex items-center gap-1 text-sm px-3 py-1 rounded-md ${
+                    pendingRequests.includes(user.id) 
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                      : 'bg-snake-primary hover:bg-purple-600 text-white'
                   }`}
                 >
                   {pendingRequests.includes(user.id) ? (
@@ -178,14 +222,18 @@ const UserSearch = () => {
                       Add Friend
                     </>
                   )}
-                </Button>
+                </button>
               </div>
             ))}
           </div>
         </div>
-      ) : searchTerm && !loading ? (
+      ) : searchTerm.trim().length >= 2 && !loading ? (
         <div className="text-center py-4 text-gray-400">
           No users found matching "{searchTerm}"
+        </div>
+      ) : searchTerm.trim().length > 0 && searchTerm.trim().length < 2 ? (
+        <div className="text-center py-4 text-gray-400">
+          Please enter at least 2 characters to search
         </div>
       ) : null}
     </div>
