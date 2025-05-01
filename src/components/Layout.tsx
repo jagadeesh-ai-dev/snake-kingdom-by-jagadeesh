@@ -1,9 +1,16 @@
 
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Gamepad, Trophy, User, LogOut, Users, MessageSquare } from "lucide-react";
-import { ReactNode } from "react";
+import { Gamepad, Trophy, User, LogOut, Users, MessageSquare, Menu } from "lucide-react";
+import { ReactNode, useState } from "react";
 import { AppUser } from "@/types";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface LayoutProps {
   children: ReactNode;
@@ -60,6 +67,63 @@ const Layout = ({ children }: LayoutProps) => {
                 Login
               </Link>
             )}
+            
+            {/* Mobile Menu */}
+            <div className="md:hidden ml-2">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button className="text-white p-2 rounded-md hover:bg-purple-800 transition-colors">
+                    <Menu size={24} />
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="right" className="bg-snake-background border-snake-grid">
+                  <SheetHeader>
+                    <SheetTitle className="text-snake-text">Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 flex flex-col gap-4">
+                    <Link to="/" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                      Home
+                    </Link>
+                    <Link to="/game" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                      <Gamepad size={20} /> Play
+                    </Link>
+                    <Link to="/leaderboard" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                      <Trophy size={20} /> Leaderboard
+                    </Link>
+                    <Link to="/tournaments" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                      <Trophy size={20} /> Tournaments
+                    </Link>
+                    <Link to="/friends" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                      <Users size={20} /> Friends
+                    </Link>
+                    {isAuthenticated && (
+                      <>
+                        <Link to="/messages" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                          <MessageSquare size={20} /> Messages
+                        </Link>
+                        <Link to="/dashboard" className="text-snake-text hover:text-purple-400 transition-colors flex items-center gap-2 py-2">
+                          <User size={20} /> Dashboard
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-2 py-2 mt-4"
+                        >
+                          <LogOut size={20} /> Logout
+                        </button>
+                      </>
+                    )}
+                    {!isAuthenticated && (
+                      <Link 
+                        to="/login" 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors text-center mt-4"
+                      >
+                        Login
+                      </Link>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </header>
