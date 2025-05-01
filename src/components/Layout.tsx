@@ -41,12 +41,12 @@ const Layout = ({ children }: LayoutProps) => {
             <Link to="/leaderboard" className="text-white hover:text-purple-200 transition-colors">Leaderboard</Link>
             <Link to="/tournaments" className="text-white hover:text-purple-200 transition-colors">Tournaments</Link>
             <Link to="/friends" className="text-white hover:text-purple-200 transition-colors">Friends</Link>
-            {isAuthenticated ? (
+            {isAuthenticated && (
               <Link to="/dashboard" className="text-white hover:text-purple-200 transition-colors">Dashboard</Link>
-            ) : null}
+            )}
           </nav>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
                 <span className="hidden md:inline text-white">
@@ -69,7 +69,7 @@ const Layout = ({ children }: LayoutProps) => {
             )}
             
             {/* Mobile Menu */}
-            <div className="md:hidden ml-2">
+            <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
                   <button className="text-white p-2 rounded-md hover:bg-purple-800 transition-colors">
