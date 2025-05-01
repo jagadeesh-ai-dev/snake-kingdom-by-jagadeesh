@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,30 +29,43 @@ const Friends = () => {
     const fetchFriendRequests = async () => {
       try {
         // Fetch friend requests where the current user is the receiver and the status is pending
-        const { data, error } = await supabase
+        const { data: friendRequests, error } = await supabase
           .from('friends')
-          .select(`
-            id, 
-            user_id,
-            profiles:user_id(id, username, avatar_url)
-          `)
+          .select('id, user_id')
           .eq('friend_id', user.id)
           .eq('status', 'pending');
         
         if (error) throw error;
         
-        if (data) {
-          // Transform the data
-          const requests: FriendRequest[] = data
-            .filter(request => request.profiles !== null) // Filter out any null profiles
-            .map(request => ({
-              id: request.profiles.id,
-              username: request.profiles.username,
-              avatar_url: request.profiles.avatar_url,
-              request_id: request.id
-            }));
+        if (friendRequests && friendRequests.length > 0) {
+          // Get the user IDs of the requestors
+          const requestorIds = friendRequests.map(request => request.user_id);
           
-          setPendingRequests(requests);
+          // Fetch profile data for those users
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', requestorIds);
+          
+          if (profilesError) throw profilesError;
+          
+          if (profiles) {
+            // Create a map of request IDs to request data
+            const requestMap: Record<string, string> = {};
+            friendRequests.forEach(request => {
+              requestMap[request.user_id] = request.id;
+            });
+            
+            // Transform the data
+            const requests: FriendRequest[] = profiles.map(profile => ({
+              id: profile.id,
+              username: profile.username,
+              avatar_url: profile.avatar_url,
+              request_id: requestMap[profile.id]
+            }));
+            
+            setPendingRequests(requests);
+          }
         }
       } catch (error) {
         console.error("Error fetching friend requests:", error);

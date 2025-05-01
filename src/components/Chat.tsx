@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Send, MinusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -42,56 +43,66 @@ const Chat = () => {
     
     const fetchFriends = async () => {
       try {
-        // We'll use separate queries and handle the data transformation in JS
-        // First fetch accepted friendships where user is the requestor
+        const friendsList: Friend[] = [];
+        
+        // First, get friends where user is the requestor
         const { data: sentRequests, error: sentError } = await supabase
           .from('friends')
-          .select(`
-            friend_id,
-            profiles!friends_friend_id_fkey(id, username, avatar_url)
-          `)
+          .select('friend_id, status')
           .eq('user_id', user.id)
           .eq('status', 'accepted');
         
         if (sentError) throw sentError;
         
-        // Then fetch accepted friendships where user is the receiver
+        // Then, get friends where user is the receiver
         const { data: receivedRequests, error: receivedError } = await supabase
           .from('friends')
-          .select(`
-            user_id,
-            profiles!friends_user_id_fkey(id, username, avatar_url)
-          `)
+          .select('user_id, status')
           .eq('friend_id', user.id)
           .eq('status', 'accepted');
         
         if (receivedError) throw receivedError;
         
-        // Combine and transform the results
-        const friendsList: Friend[] = [];
-        
-        if (sentRequests) {
-          sentRequests.forEach(item => {
-            if (item.profiles) {
+        // Get profiles for sent requests (where the user is the requestor)
+        if (sentRequests && sentRequests.length > 0) {
+          const friendIds = sentRequests.map(req => req.friend_id);
+          const { data: friendProfiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', friendIds);
+          
+          if (profilesError) throw profilesError;
+          
+          if (friendProfiles) {
+            friendProfiles.forEach(profile => {
               friendsList.push({
-                id: item.profiles.id,
-                username: item.profiles.username,
-                avatar_url: item.profiles.avatar_url
+                id: profile.id,
+                username: profile.username,
+                avatar_url: profile.avatar_url
               });
-            }
-          });
+            });
+          }
         }
         
-        if (receivedRequests) {
-          receivedRequests.forEach(item => {
-            if (item.profiles) {
+        // Get profiles for received requests (where the user is the receiver)
+        if (receivedRequests && receivedRequests.length > 0) {
+          const friendIds = receivedRequests.map(req => req.user_id);
+          const { data: friendProfiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', friendIds);
+          
+          if (profilesError) throw profilesError;
+          
+          if (friendProfiles) {
+            friendProfiles.forEach(profile => {
               friendsList.push({
-                id: item.profiles.id,
-                username: item.profiles.username,
-                avatar_url: item.profiles.avatar_url
+                id: profile.id,
+                username: profile.username,
+                avatar_url: profile.avatar_url
               });
-            }
-          });
+            });
+          }
         }
         
         setFriends(friendsList);
@@ -117,27 +128,44 @@ const Chat = () => {
         // Fetch messages between current user and selected friend
         const { data, error } = await supabase
           .from('messages')
-          .select(`
-            id, sender_id, receiver_id, content, created_at,
-            profiles!messages_sender_id_fkey(username, avatar_url)
-          `)
+          .select('id, sender_id, receiver_id, content, created_at')
           .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedFriend.id}),and(sender_id.eq.${selectedFriend.id},receiver_id.eq.${user.id})`)
           .order('created_at', { ascending: true });
         
         if (error) throw error;
         
         if (data) {
+          // Get all the sender IDs to fetch their profiles
+          const senderIds = [...new Set(data.map(msg => msg.sender_id))];
+          
+          // Fetch sender profiles
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', senderIds);
+          
+          if (profilesError) throw profilesError;
+          
+          // Create a map of user IDs to profile data
+          const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
+          
+          if (profiles) {
+            profiles.forEach(profile => {
+              profileMap[profile.id] = {
+                username: profile.username,
+                avatar_url: profile.avatar_url
+              };
+            });
+          }
+          
           // Transform the data to match our Message type
-          const formattedMessages: Message[] = data.map(item => ({
-            id: item.id,
-            sender_id: item.sender_id,
-            receiver_id: item.receiver_id,
-            content: item.content,
-            created_at: item.created_at,
-            sender: {
-              username: item.profiles?.username || 'Unknown',
-              avatar_url: item.profiles?.avatar_url
-            }
+          const formattedMessages: Message[] = data.map(message => ({
+            id: message.id,
+            sender_id: message.sender_id,
+            receiver_id: message.receiver_id,
+            content: message.content,
+            created_at: message.created_at,
+            sender: profileMap[message.sender_id] || { username: 'Unknown', avatar_url: null }
           }));
           
           setMessages(formattedMessages);

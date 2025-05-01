@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Profile } from "./types";
 
@@ -43,8 +44,7 @@ export const registerUser = async (email: string, username: string, password: st
         data: {
           username
         },
-        emailRedirectTo: `${window.location.origin}/login`,
-        // Removing emailOptions as it's not supported in this version
+        emailRedirectTo: `${window.location.origin}/login`
       }
     });
 
