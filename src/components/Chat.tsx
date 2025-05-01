@@ -34,7 +34,7 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   
   // Fetch friends list
   useEffect(() => {
@@ -55,18 +55,26 @@ const Chat = () => {
         
         if (error) throw error;
         
-        // Transform data to get a clean friends list
-        const friendsList = friendsData.map(item => {
-          // If user is the requestor, return the friend data
-          // Otherwise return the user data (who is the friend from this user's perspective)
-          if (item.user_id === user.id) {
-            return item.friend;
-          } else {
-            return item.user;
-          }
-        });
-        
-        setFriends(friendsList);
+        if (friendsData) {
+          // Transform data to get a clean friends list
+          const friendsList = friendsData.map(item => {
+            // If user is the requestor, return the friend data
+            // Otherwise return the user data (who is the friend from this user's perspective)
+            return item.user_id === user.id 
+              ? {
+                  id: item.friend?.id,
+                  username: item.friend?.username,
+                  avatar_url: item.friend?.avatar_url
+                }
+              : {
+                  id: item.user?.id,
+                  username: item.user?.username,
+                  avatar_url: item.user?.avatar_url
+                };
+          }).filter(f => f.id !== undefined) as Friend[];
+          
+          setFriends(friendsList);
+        }
       } catch (error) {
         console.error("Error fetching friends:", error);
         toast({
@@ -98,7 +106,9 @@ const Chat = () => {
         
         if (error) throw error;
         
-        setMessages(data);
+        if (data) {
+          setMessages(data as Message[]);
+        }
       } catch (error) {
         console.error("Error fetching messages:", error);
         toast({
@@ -112,31 +122,30 @@ const Chat = () => {
     fetchMessages();
     
     // Subscribe to new messages
+    const channelName = `chat-${[user.id, selectedFriend.id].sort().join('-')}`;
     const channel = supabase
-      .channel('messages')
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
         filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${selectedFriend.id}),and(sender_id=eq.${selectedFriend.id},receiver_id=eq.${user.id}))`,
-      }, (payload) => {
+      }, async (payload) => {
         // Fetch the sender information for the new message
-        const fetchSenderInfo = async () => {
-          const { data } = await supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', payload.new.sender_id)
-            .single();
+        const { data } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', payload.new.sender_id)
+          .single();
             
-          const newMessage = {
+        if (data) {
+          const newMessage: Message = {
             ...payload.new,
             sender: data
           };
           
           setMessages(prev => [...prev, newMessage]);
-        };
-        
-        fetchSenderInfo();
+        }
       })
       .subscribe();
     
@@ -201,7 +210,7 @@ const Chat = () => {
                 >
                   <Avatar>
                     <AvatarImage src={friend.avatar_url || undefined} />
-                    <AvatarFallback>{friend.username.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{friend.username?.substring(0, 2).toUpperCase() || 'UN'}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium text-snake-text">{friend.username}</span>
                 </div>

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Search, User, UserPlus } from "lucide-react";
+import { Search, User, UserPlus, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,6 +18,7 @@ const UserSearch = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<UserResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -26,7 +27,6 @@ const UserSearch = () => {
     
     setLoading(true);
     const { success, data, error } = await searchUsers(searchTerm);
-    setLoading(false);
     
     if (success && data) {
       // Filter out the current user from results
@@ -34,6 +34,23 @@ const UserSearch = () => {
         result.id !== user?.id
       );
       setResults(filteredResults);
+      
+      // Check for any pending friend requests
+      if (user && filteredResults.length > 0) {
+        const ids = filteredResults.map(result => result.id);
+        const { data: friendships } = await supabase
+          .from('friends')
+          .select('friend_id, status')
+          .eq('user_id', user.id)
+          .in('friend_id', ids);
+          
+        if (friendships) {
+          const pendingIds = friendships
+            .filter(fs => fs.status === 'pending')
+            .map(fs => fs.friend_id);
+          setPendingRequests(pendingIds);
+        }
+      }
     } else {
       toast({
         title: "Search Failed",
@@ -41,6 +58,8 @@ const UserSearch = () => {
         variant: "destructive",
       });
     }
+    
+    setLoading(false);
   };
   
   const handleAddFriend = async (friendId: string) => {
@@ -51,13 +70,13 @@ const UserSearch = () => {
       const { data: existingFriendship } = await supabase
         .from('friends')
         .select('*')
-        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
-        .or(`user_id.eq.${friendId},friend_id.eq.${friendId}`);
+        .or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`)
+        .single();
       
-      if (existingFriendship && existingFriendship.length > 0) {
+      if (existingFriendship) {
         toast({
           title: "Already Friends",
-          description: "You are already friends with this user",
+          description: "You are already friends with this user or have a pending request",
         });
         return;
       }
@@ -72,6 +91,9 @@ const UserSearch = () => {
         });
       
       if (error) throw error;
+      
+      // Update UI to show pending
+      setPendingRequests(prev => [...prev, friendId]);
       
       toast({
         title: "Friend Request Sent",
@@ -98,6 +120,11 @@ const UserSearch = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-gray-800 border-gray-700"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch();
+              }
+            }}
           />
         </div>
         <Button 
@@ -133,10 +160,24 @@ const UserSearch = () => {
                   size="sm" 
                   variant="outline"
                   onClick={() => handleAddFriend(user.id)}
-                  className="flex items-center gap-1 text-sm"
+                  disabled={pendingRequests.includes(user.id)}
+                  className={`flex items-center gap-1 text-sm ${
+                    pendingRequests.includes(user.id) ? 
+                      'bg-gray-700 text-gray-400' : 
+                      ''
+                  }`}
                 >
-                  <UserPlus size={16} />
-                  Add Friend
+                  {pendingRequests.includes(user.id) ? (
+                    <>
+                      <Check size={16} />
+                      Request Sent
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} />
+                      Add Friend
+                    </>
+                  )}
                 </Button>
               </div>
             ))}
