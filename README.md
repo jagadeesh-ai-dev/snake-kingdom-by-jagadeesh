@@ -1,78 +1,61 @@
+# Snake Kingdom
 
-# Welcome to Hungry Snake!
+A browser-based snake game project built with **React, TypeScript, and Vite**, with routes for gameplay, player accounts, leaderboards, tournaments, profiles, friends, and messages.
 
-A multiplayer snake game with tournament support, social features, and persistent leaderboards.
+## Project Areas
 
-## Project info
+- Snake gameplay
+- Account registration, login, and password recovery screens
+- Player dashboard and profile
+- Leaderboard
+- Tournaments
+- Friends and messaging pages
+- Responsive React interface
 
-**URL**: https://lovable.dev/projects/3078111c-081e-4328-ac3e-29153135565d
+> These are application routes and project features; verify backend integrations and end-to-end behavior before presenting the project as production-ready.
 
-## Features
+## Tech Stack
 
-- Classic snake gameplay with multiple difficulty levels
-- User authentication with persistent login
-- Leaderboards to track high scores
-- Profile customization with bio and profile picture
-- Game history tracking
-- Tournaments system
-- Friend requests and social connections
-- Real-time chat with voice messages
-- Mobile/tablet responsive design with touch controls
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- React Router
 
-## How can I edit this code?
+## Run Locally
 
-There are several ways of editing your application.
+### Prerequisites
 
-**Use Lovable**
+Install a current Node.js LTS release and npm.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3078111c-081e-4328-ac3e-29153135565d) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+git clone https://github.com/jagadeesh-ai-dev/snake-kingdom-by-jagadeesh.git
+cd snake-kingdom-by-jagadeesh
+npm install
 npm run dev
 ```
 
-## Deployment
+Use the local URL printed by Vite to open the app.
 
-For detailed deployment instructions, please refer to the [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) file included in this repository.
+## Build and Lint
 
-## What technologies are used for this project?
+```bash
+npm run build
+npm run lint
+```
 
-This project is built with:
+## Project Workspace
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The project was created with Lovable. The workspace is available at [Lovable](https://lovable.dev/projects/3078111c-081e-4328-ac3e-29153135565d).
 
-## How can I deploy this project?
+## Next Improvements
 
-Simply open [Lovable](https://lovable.dev/projects/3078111c-081e-4328-ac3e-29153135565d) and click on Share -> Publish.
+- Add screenshots of the current working UI
+- Document required environment variables and backend setup
+- Add tests for gameplay and important user flows
+- Verify accessibility and mobile interactions
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Built by [Jagadeesh](https://github.com/jagadeesh-ai-dev).
